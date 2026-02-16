@@ -370,6 +370,101 @@
         .table-container {
             overflow-x: auto;
         }
+
+        /* Budget Limits */
+        .budget-limit-input {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #ecf0f1;
+        }
+
+        .budget-limit-input select {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .budget-limit-input input {
+            width: 120px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .limit-progress {
+            height: 8px;
+            background-color: #ecf0f1;
+            border-radius: 4px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+
+        .limit-progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+
+        .limit-progress-fill.normal {
+            background-color: #2ecc71;
+        }
+
+        .limit-progress-fill.warning {
+            background-color: #f39c12;
+        }
+
+        .limit-progress-fill.exceeded {
+            background-color: #e74c3c;
+        }
+
+        .limit-info {
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            margin-top: 3px;
+        }
+
+        .limit-info.warning {
+            color: #f39c12;
+            font-weight: 500;
+        }
+
+        .limit-info.exceeded {
+            color: #e74c3c;
+            font-weight: 500;
+        }
+
+        .budget-alert {
+            background-color: #e74c3c;
+            color: white;
+            padding: 12px 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .budget-alert.warning {
+            background-color: #f39c12;
+        }
+
+        .budget-alert-icon {
+            font-size: 1.2rem;
+        }
+
+        .budget-alerts-container {
+            margin-bottom: 15px;
+        }
+
+        .category-limit-display {
+            font-size: 0.75rem;
+            opacity: 0.9;
+            margin-left: 5px;
+        }
     </style>
 </head>
 <body>
@@ -413,6 +508,11 @@
                     <input type="color" id="newCategoryColor" value="#3498db">
                     <button class="btn btn-primary" onclick="addCategory()">Add</button>
                 </div>
+                <div class="budget-limit-input">
+                    <select id="limitCategory"></select>
+                    <input type="number" id="limitAmount" min="0" step="0.01" placeholder="Monthly limit ($)">
+                    <button class="btn btn-primary" onclick="setBudgetLimit()">Set Limit</button>
+                </div>
             </div>
 
             <!-- Monthly Summary -->
@@ -422,6 +522,7 @@
                     <select id="summaryMonth"></select>
                     <select id="summaryYear"></select>
                 </div>
+                <div class="budget-alerts-container" id="budgetAlerts"></div>
                 <div class="summary-stats" id="summaryStats"></div>
                 <div class="category-breakdown" id="categoryBreakdown"></div>
             </div>
@@ -541,14 +642,20 @@
             const categoryList = document.getElementById('categoryList');
             const categorySelect = document.getElementById('category');
             const filterCategory = document.getElementById('filterCategory');
+            const limitCategory = document.getElementById('limitCategory');
 
-            // Render category tags
-            categoryList.innerHTML = categories.map(cat => `
-                <span class="category-tag" style="background-color: ${cat.color}">
-                    ${cat.name}
-                    ${!cat.isDefault ? `<button onclick="deleteCategory(${cat.id})">&times;</button>` : ''}
-                </span>
-            `).join('');
+            // Render category tags with limit indicator
+            categoryList.innerHTML = categories.map(cat => {
+                const limitDisplay = cat.monthlyLimit
+                    ? `<span class="category-limit-display">($${cat.monthlyLimit.toFixed(0)}/mo)</span>`
+                    : '';
+                return `
+                    <span class="category-tag" style="background-color: ${cat.color}">
+                        ${cat.name}${limitDisplay}
+                        ${!cat.isDefault ? `<button onclick="deleteCategory(${cat.id})">&times;</button>` : ''}
+                    </span>
+                `;
+            }).join('');
 
             // Update category dropdown in expense form
             categorySelect.innerHTML = categories.map(cat =>
@@ -560,6 +667,13 @@
                 categories.map(cat =>
                     `<option value="${cat.id}">${cat.name}</option>`
                 ).join('');
+
+            // Update limit category dropdown
+            limitCategory.innerHTML = '<option value="">Select category...</option>' +
+                categories.map(cat => {
+                    const limitText = cat.monthlyLimit ? ` (current: $${cat.monthlyLimit.toFixed(0)})` : '';
+                    return `<option value="${cat.id}">${cat.name}${limitText}</option>`;
+                }).join('');
         }
 
         function addCategory() {
@@ -612,6 +726,64 @@
             return categories.find(c => c.id === id) || { name: 'Unknown', color: '#95a5a6' };
         }
 
+        function setBudgetLimit() {
+            const categoryId = parseInt(document.getElementById('limitCategory').value);
+            const limitAmount = parseFloat(document.getElementById('limitAmount').value);
+
+            if (!categoryId) {
+                alert('Please select a category');
+                return;
+            }
+
+            if (isNaN(limitAmount) || limitAmount < 0) {
+                alert('Please enter a valid limit amount (0 to remove limit)');
+                return;
+            }
+
+            const category = categories.find(c => c.id === categoryId);
+            if (category) {
+                if (limitAmount === 0) {
+                    delete category.monthlyLimit;
+                } else {
+                    category.monthlyLimit = limitAmount;
+                }
+                saveToStorage();
+                renderCategories();
+                renderMonthlySummary();
+            }
+
+            document.getElementById('limitAmount').value = '';
+        }
+
+        function getCategoryMonthlySpending(categoryId, month, year) {
+            return expenses
+                .filter(e => {
+                    const date = new Date(e.date);
+                    return e.categoryId === categoryId &&
+                           date.getMonth() === month &&
+                           date.getFullYear() === year;
+                })
+                .reduce((sum, e) => sum + e.amount, 0);
+        }
+
+        function checkBudgetAlert(categoryId, dateStr) {
+            const category = getCategoryById(categoryId);
+            if (!category.monthlyLimit) return;
+
+            const date = new Date(dateStr);
+            const month = date.getMonth();
+            const year = date.getFullYear();
+
+            const spent = getCategoryMonthlySpending(categoryId, month, year);
+            const percentage = (spent / category.monthlyLimit) * 100;
+
+            if (percentage >= 100) {
+                alert(`Budget Alert: You have exceeded your ${category.name} budget!\n\nSpent: ${formatCurrency(spent)}\nLimit: ${formatCurrency(category.monthlyLimit)}\nOver by: ${formatCurrency(spent - category.monthlyLimit)}`);
+            } else if (percentage >= 80) {
+                alert(`Budget Warning: You are approaching your ${category.name} budget limit!\n\nSpent: ${formatCurrency(spent)}\nLimit: ${formatCurrency(category.monthlyLimit)}\nRemaining: ${formatCurrency(category.monthlyLimit - spent)} (${(100 - percentage).toFixed(0)}% left)`);
+            }
+        }
+
         // ==================== Add Expense Form (Issue #1) ====================
 
         function initExpenseForm() {
@@ -646,6 +818,9 @@
 
                 expenses.push(newExpense);
                 saveToStorage();
+
+                // Check budget limit after adding expense
+                checkBudgetAlert(categoryId, date);
 
                 // Clear form
                 document.getElementById('amount').value = '';
@@ -896,11 +1071,89 @@
                 categoryTotals[e.categoryId] += e.amount;
             });
 
+            // Generate budget alerts
+            const alerts = [];
+            categories.forEach(cat => {
+                if (cat.monthlyLimit) {
+                    const spent = categoryTotals[cat.id] || 0;
+                    const percentage = (spent / cat.monthlyLimit) * 100;
+
+                    if (percentage >= 100) {
+                        alerts.push({
+                            type: 'exceeded',
+                            category: cat.name,
+                            spent: spent,
+                            limit: cat.monthlyLimit,
+                            percentage: percentage
+                        });
+                    } else if (percentage >= 80) {
+                        alerts.push({
+                            type: 'warning',
+                            category: cat.name,
+                            spent: spent,
+                            limit: cat.monthlyLimit,
+                            percentage: percentage
+                        });
+                    }
+                }
+            });
+
+            // Render alerts
+            const alertsHtml = alerts.map(alert => {
+                if (alert.type === 'exceeded') {
+                    return `
+                        <div class="budget-alert">
+                            <span class="budget-alert-icon">!</span>
+                            <span><strong>${alert.category}</strong> budget exceeded! Spent ${formatCurrency(alert.spent)} of ${formatCurrency(alert.limit)} (${alert.percentage.toFixed(0)}%)</span>
+                        </div>
+                    `;
+                } else {
+                    return `
+                        <div class="budget-alert warning">
+                            <span class="budget-alert-icon">!</span>
+                            <span><strong>${alert.category}</strong> approaching limit: ${formatCurrency(alert.spent)} of ${formatCurrency(alert.limit)} (${alert.percentage.toFixed(0)}%)</span>
+                        </div>
+                    `;
+                }
+            }).join('');
+
+            document.getElementById('budgetAlerts').innerHTML = alertsHtml;
+
+            // Build breakdown with limit progress bars
             const breakdownHtml = Object.entries(categoryTotals)
                 .sort((a, b) => b[1] - a[1])
                 .map(([catId, total]) => {
                     const category = getCategoryById(parseInt(catId));
                     const percentage = totalThisMonth > 0 ? (total / totalThisMonth) * 100 : 0;
+
+                    let limitHtml = '';
+                    if (category.monthlyLimit) {
+                        const limitPercentage = (total / category.monthlyLimit) * 100;
+                        const cappedPercentage = Math.min(limitPercentage, 100);
+                        let progressClass = 'normal';
+                        let infoClass = '';
+
+                        if (limitPercentage >= 100) {
+                            progressClass = 'exceeded';
+                            infoClass = 'exceeded';
+                        } else if (limitPercentage >= 80) {
+                            progressClass = 'warning';
+                            infoClass = 'warning';
+                        }
+
+                        const remaining = category.monthlyLimit - total;
+                        const limitInfoText = remaining >= 0
+                            ? `${formatCurrency(remaining)} remaining of ${formatCurrency(category.monthlyLimit)} limit`
+                            : `${formatCurrency(Math.abs(remaining))} over ${formatCurrency(category.monthlyLimit)} limit`;
+
+                        limitHtml = `
+                            <div class="limit-progress">
+                                <div class="limit-progress-fill ${progressClass}" style="width: ${cappedPercentage}%"></div>
+                            </div>
+                            <div class="limit-info ${infoClass}">${limitInfoText}</div>
+                        `;
+                    }
+
                     return `
                         <div class="category-bar">
                             <div class="category-bar-header">
@@ -908,6 +1161,7 @@
                                 <span>${formatCurrency(total)} (${percentage.toFixed(1)}%)</span>
                             </div>
                             <div class="category-bar-fill" style="width: ${percentage}%; background-color: ${category.color}"></div>
+                            ${limitHtml}
                         </div>
                     `;
                 }).join('');

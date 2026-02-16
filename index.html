@@ -131,6 +131,15 @@
             background-color: #7f8c8d;
         }
 
+        .btn-success {
+            background-color: #27ae60;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: #219a52;
+        }
+
         /* Category Management */
         .category-list {
             display: flex;
@@ -444,6 +453,7 @@
                     <input type="date" id="filterStartDate" placeholder="Start date">
                     <input type="date" id="filterEndDate" placeholder="End date">
                     <button class="btn btn-secondary" onclick="clearFilters()">Clear Filters</button>
+                    <button class="btn btn-success" onclick="exportToCSV()">Export CSV</button>
                 </div>
                 <div class="table-container">
                     <table class="expense-table">
@@ -757,6 +767,59 @@
             document.getElementById('filterStartDate').value = '';
             document.getElementById('filterEndDate').value = '';
             renderExpenses();
+        }
+
+        // ==================== Export to CSV (Issue #8) ====================
+
+        function exportToCSV() {
+            const filteredExpenses = getFilteredExpenses();
+
+            if (filteredExpenses.length === 0) {
+                alert('No expenses to export');
+                return;
+            }
+
+            // Sort by date (oldest first for chronological CSV)
+            const sorted = [...filteredExpenses].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            // CSV header
+            const headers = ['Date', 'Description', 'Category', 'Amount'];
+
+            // Build CSV rows
+            const rows = sorted.map(expense => {
+                const category = getCategoryById(expense.categoryId);
+                return [
+                    expense.date,
+                    escapeCSVField(expense.description),
+                    escapeCSVField(category.name),
+                    expense.amount.toFixed(2)
+                ].join(',');
+            });
+
+            // Combine header and rows
+            const csvContent = [headers.join(','), ...rows].join('\n');
+
+            // Create and trigger download
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `expenses_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        function escapeCSVField(field) {
+            if (field == null) return '';
+            const str = String(field);
+            // If field contains comma, quote, or newline, wrap in quotes and escape quotes
+            if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                return '"' + str.replace(/"/g, '""') + '"';
+            }
+            return str;
         }
 
         // ==================== Monthly Summary (Issue #4) ====================

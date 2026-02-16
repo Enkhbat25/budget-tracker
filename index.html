@@ -1,10 +1,48 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Budget Tracker</title>
+    <script>
+        // Prevent flash of wrong theme
+        (function() {
+            var theme = localStorage.getItem('budgetTracker_theme') ||
+                (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
     <style>
+        /* Light theme (default) */
+        :root {
+            --bg-primary: #f5f5f5;
+            --bg-card: white;
+            --text-primary: #2c3e50;
+            --text-secondary: #7f8c8d;
+            --text-muted: #95a5a6;
+            --border-color: #ecf0f1;
+            --input-border: #ddd;
+            --input-bg: white;
+            --table-header-bg: #f8f9fa;
+            --table-hover-bg: #f8f9fa;
+            --total-row-bg: #ecf0f1;
+        }
+
+        /* Dark theme */
+        [data-theme="dark"] {
+            --bg-primary: #1a1a2e;
+            --bg-card: #16213e;
+            --text-primary: #eaeaea;
+            --text-secondary: #a0a0a0;
+            --text-muted: #6c6c6c;
+            --border-color: #2a2a4a;
+            --input-border: #3a3a5a;
+            --input-bg: #1a1a2e;
+            --table-header-bg: #1a1a2e;
+            --table-hover-bg: #1f1f3a;
+            --total-row-bg: #2a2a4a;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -13,9 +51,11 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background-color: #f5f5f5;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
             min-height: 100vh;
             padding: 20px;
+            transition: background-color 0.3s, color 0.3s;
         }
 
         .container {
@@ -29,14 +69,56 @@
         }
 
         header h1 {
-            color: #2c3e50;
+            color: var(--text-primary);
             font-size: 2.5rem;
             margin-bottom: 10px;
         }
 
         header p {
-            color: #7f8c8d;
+            color: var(--text-secondary);
             font-size: 1.1rem;
+        }
+
+        .header-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .theme-toggle {
+            background: var(--bg-card);
+            border: 1px solid var(--input-border);
+            color: var(--text-primary);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+
+        .theme-toggle:hover {
+            border-color: #3498db;
+        }
+
+        .help-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--input-border);
+            color: var(--text-primary);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .help-btn:hover {
+            border-color: #3498db;
         }
 
         .grid {
@@ -53,18 +135,19 @@
         }
 
         .card {
-            background: white;
+            background: var(--bg-card);
             border-radius: 10px;
             padding: 20px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: background-color 0.3s;
         }
 
         .card h2 {
-            color: #2c3e50;
+            color: var(--text-primary);
             font-size: 1.3rem;
             margin-bottom: 15px;
             padding-bottom: 10px;
-            border-bottom: 2px solid #ecf0f1;
+            border-bottom: 2px solid var(--border-color);
         }
 
         .form-group {
@@ -74,7 +157,7 @@
         .form-group label {
             display: block;
             margin-bottom: 5px;
-            color: #34495e;
+            color: var(--text-primary);
             font-weight: 500;
         }
 
@@ -82,9 +165,11 @@
         .form-group select {
             width: 100%;
             padding: 10px;
-            border: 1px solid #ddd;
+            border: 1px solid var(--input-border);
             border-radius: 5px;
             font-size: 1rem;
+            background-color: var(--input-bg);
+            color: var(--text-primary);
         }
 
         .form-group input:focus,
@@ -199,22 +284,22 @@
         .expense-table td {
             padding: 12px;
             text-align: left;
-            border-bottom: 1px solid #ecf0f1;
+            border-bottom: 1px solid var(--border-color);
         }
 
         .expense-table th {
-            background-color: #f8f9fa;
+            background-color: var(--table-header-bg);
             font-weight: 600;
-            color: #2c3e50;
+            color: var(--text-primary);
         }
 
         .expense-table tr:hover {
-            background-color: #f8f9fa;
+            background-color: var(--table-hover-bg);
         }
 
         .total-row {
             font-weight: bold;
-            background-color: #ecf0f1 !important;
+            background-color: var(--total-row-bg) !important;
         }
 
         .amount {
@@ -233,9 +318,11 @@
         .filters input,
         .filters select {
             padding: 8px;
-            border: 1px solid #ddd;
+            border: 1px solid var(--input-border);
             border-radius: 5px;
             font-size: 0.9rem;
+            background-color: var(--input-bg);
+            color: var(--text-primary);
         }
 
         .filters input[type="text"] {
@@ -286,8 +373,10 @@
 
         .month-selector select {
             padding: 8px;
-            border: 1px solid #ddd;
+            border: 1px solid var(--input-border);
             border-radius: 5px;
+            background-color: var(--input-bg);
+            color: var(--text-primary);
         }
 
         .category-breakdown {
@@ -329,7 +418,7 @@
 
         .chart-wrapper h3 {
             margin-bottom: 15px;
-            color: #2c3e50;
+            color: var(--text-primary);
         }
 
         canvas {
@@ -359,7 +448,7 @@
 
         .empty-state {
             text-align: center;
-            color: #95a5a6;
+            color: var(--text-muted);
             padding: 30px;
         }
 
@@ -378,26 +467,30 @@
             gap: 10px;
             margin-top: 15px;
             padding-top: 15px;
-            border-top: 1px solid #ecf0f1;
+            border-top: 1px solid var(--border-color);
         }
 
         .budget-limit-input select {
             flex: 1;
             padding: 8px;
-            border: 1px solid #ddd;
+            border: 1px solid var(--input-border);
             border-radius: 5px;
+            background-color: var(--input-bg);
+            color: var(--text-primary);
         }
 
         .budget-limit-input input {
             width: 120px;
             padding: 8px;
-            border: 1px solid #ddd;
+            border: 1px solid var(--input-border);
             border-radius: 5px;
+            background-color: var(--input-bg);
+            color: var(--text-primary);
         }
 
         .limit-progress {
             height: 8px;
-            background-color: #ecf0f1;
+            background-color: var(--border-color);
             border-radius: 4px;
             margin-top: 5px;
             overflow: hidden;
@@ -423,7 +516,7 @@
 
         .limit-info {
             font-size: 0.85rem;
-            color: #7f8c8d;
+            color: var(--text-secondary);
             margin-top: 3px;
         }
 
@@ -465,6 +558,69 @@
             opacity: 0.9;
             margin-left: 5px;
         }
+
+        /* Keyboard Shortcuts Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg-card);
+            padding: 25px;
+            border-radius: 10px;
+            max-width: 400px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal h2 {
+            color: var(--text-primary);
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .shortcut-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .shortcut-row:last-child {
+            border-bottom: none;
+        }
+
+        .shortcut-row span {
+            color: var(--text-primary);
+        }
+
+        kbd {
+            background: var(--table-header-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+        }
+
+        .modal-close {
+            margin-top: 20px;
+            width: 100%;
+        }
     </style>
 </head>
 <body>
@@ -472,7 +628,50 @@
         <header>
             <h1>Budget Tracker</h1>
             <p>Track your expenses and manage your budget</p>
+            <div class="header-controls">
+                <button class="theme-toggle" onclick="toggleTheme()">
+                    <span id="themeIcon">🌙</span>
+                    <span id="themeText">Dark Mode</span>
+                </button>
+                <button class="help-btn" onclick="showHelp()" title="Keyboard Shortcuts (?)">?</button>
+            </div>
         </header>
+
+        <!-- Keyboard Shortcuts Modal -->
+        <div id="helpModal" class="modal-overlay" onclick="if(event.target === this) hideHelp()">
+            <div class="modal">
+                <h2>Keyboard Shortcuts</h2>
+                <div class="shortcut-row">
+                    <span>New expense (focus amount)</span>
+                    <span><kbd>N</kbd></span>
+                </div>
+                <div class="shortcut-row">
+                    <span>Search expenses</span>
+                    <span><kbd>S</kbd> or <kbd>/</kbd></span>
+                </div>
+                <div class="shortcut-row">
+                    <span>Export to CSV</span>
+                    <span><kbd>E</kbd></span>
+                </div>
+                <div class="shortcut-row">
+                    <span>Toggle dark mode</span>
+                    <span><kbd>D</kbd></span>
+                </div>
+                <div class="shortcut-row">
+                    <span>Clear filters</span>
+                    <span><kbd>C</kbd></span>
+                </div>
+                <div class="shortcut-row">
+                    <span>Show this help</span>
+                    <span><kbd>?</kbd></span>
+                </div>
+                <div class="shortcut-row">
+                    <span>Close modal / Clear</span>
+                    <span><kbd>Esc</kbd></span>
+                </div>
+                <button class="btn btn-primary modal-close" onclick="hideHelp()">Close</button>
+            </div>
+        </div>
 
         <div class="grid">
             <!-- Add Expense Form -->
@@ -583,6 +782,109 @@
 
     <script>
         // Budget Tracker Application
+
+        // ==================== Dark Mode (Issue #10) ====================
+
+        function getPreferredTheme() {
+            const stored = localStorage.getItem('budgetTracker_theme');
+            if (stored) return stored;
+            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('budgetTracker_theme', theme);
+            updateThemeButton(theme);
+        }
+
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            setTheme(next);
+        }
+
+        function updateThemeButton(theme) {
+            const icon = document.getElementById('themeIcon');
+            const text = document.getElementById('themeText');
+            if (theme === 'dark') {
+                icon.textContent = '☀️';
+                text.textContent = 'Light Mode';
+            } else {
+                icon.textContent = '🌙';
+                text.textContent = 'Dark Mode';
+            }
+        }
+
+        // Listen for system preference changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            if (!localStorage.getItem('budgetTracker_theme')) {
+                setTheme(e.matches ? 'dark' : 'light');
+            }
+        });
+
+        // ==================== Keyboard Shortcuts (Issue #11) ====================
+
+        function showHelp() {
+            document.getElementById('helpModal').classList.add('active');
+        }
+
+        function hideHelp() {
+            document.getElementById('helpModal').classList.remove('active');
+        }
+
+        function isTyping(e) {
+            const tag = e.target.tagName;
+            return tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable;
+        }
+
+        function initKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Escape always works - close modal or blur input
+                if (e.key === 'Escape') {
+                    if (document.getElementById('helpModal').classList.contains('active')) {
+                        hideHelp();
+                    } else if (isTyping(e)) {
+                        e.target.blur();
+                    }
+                    return;
+                }
+
+                // Skip other shortcuts when typing
+                if (isTyping(e)) return;
+
+                // ? - Show help
+                if (e.key === '?') {
+                    e.preventDefault();
+                    showHelp();
+                    return;
+                }
+
+                // Single-key shortcuts
+                switch (e.key.toLowerCase()) {
+                    case 'n': // New expense - focus amount
+                        e.preventDefault();
+                        document.getElementById('amount').focus();
+                        break;
+                    case 's': // Search
+                    case '/':
+                        e.preventDefault();
+                        document.getElementById('searchText').focus();
+                        break;
+                    case 'e': // Export
+                        e.preventDefault();
+                        exportToCSV();
+                        break;
+                    case 'd': // Toggle dark mode
+                        e.preventDefault();
+                        toggleTheme();
+                        break;
+                    case 'c': // Clear filters
+                        e.preventDefault();
+                        clearFilters();
+                        break;
+                }
+            });
+        }
 
         // Default categories
         const DEFAULT_CATEGORIES = [
@@ -1300,6 +1602,12 @@
         // ==================== Initialize Application ====================
 
         function init() {
+            // Initialize theme button state
+            updateThemeButton(getPreferredTheme());
+
+            // Initialize keyboard shortcuts
+            initKeyboardShortcuts();
+
             loadFromStorage();
             renderCategories();
             initExpenseForm();
